@@ -14,31 +14,31 @@ URL = "https://www.oree.com.ua/index.php/control/results_mo/DAM"
 
 @dataclass
 class PricePerHour:
+    date_of_parsing: str
     hour: int
     price: float
     sales_volume_MWh: float
     purchase_volume_MWh: float
     declared_sales_volume_MWh: float
     declared_purchase_volume_MWh: float
-    date_of_parsing: str
 
 
 PRICE_FIELDS = [field.name for field in fields(PricePerHour)]
 
 
-def get_hour_row(row: BeautifulSoup) -> PricePerHour:
+def get_hour_row(row: BeautifulSoup, date) -> PricePerHour:
     return PricePerHour(
+        date_of_parsing=date,
         hour=int(row.select_one("td:nth-child(2)").text),
         price=float(row.select_one("td:nth-child(3)").text),
         sales_volume_MWh=float(row.select_one("td:nth-child(4)").text),
         purchase_volume_MWh=float(row.select_one("td:nth-child(5)").text),
         declared_sales_volume_MWh=float(row.select_one("td:nth-child(6)").text),
         declared_purchase_volume_MWh=float(row.select_one("td:nth-child(7)").text),
-        date_of_parsing=str(datetime.datetime.now().date())
     )
 
 
-def save_to_csv(data: list, date: str) -> None:
+def save_to_csv(data: list, date: str = str(datetime.datetime.now().date())) -> None:
     date_now = str(datetime.datetime.now().date())
     filename = f"Дата ств-{date_now} за-{date}.csv"
     with open(filename, mode="w", newline="") as file:
@@ -69,7 +69,7 @@ def get_date():
     return date
 
 
-def get_table(date: str) -> list:
+def get_table(date: str = str(datetime.datetime.now().date())) -> list:
     driver = Chrome()
     check_connection(driver, URL)
     time.sleep(3)
@@ -93,7 +93,7 @@ def get_table(date: str) -> list:
         for row in rows:
             cells = row.find_all("td")
             if len(cells) == 8:
-                data.append(get_hour_row(row))
+                data.append(get_hour_row(row, date))
 
     driver.close()
     return data
