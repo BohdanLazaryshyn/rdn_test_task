@@ -1,51 +1,22 @@
-import secrets
 import datetime
 import time
-import requests
 
-from flask import Flask, request, jsonify, render_template, flash
-from selenium.common import WebDriverException
-from selenium.webdriver import Chrome, Keys
 from bs4 import BeautifulSoup
+from flask import request, jsonify, render_template, flash
+from selenium.webdriver import Chrome, Keys
 from selenium.webdriver.common.by import By
 
-from models import PricePerHour, URL
-from utils import get_date
+from config import app, db
+from utils import (
+    get_date,
+    get_hour_row,
+    check_connection_for_driver,
+    check_connection,
+    URL)
 
+from models import PricePerHour
 
-app = Flask(__name__)
-app.config["DEBUG"] = True
-app.secret_key = secrets.token_hex(16)
-
-last_date = get_date()        # last date for which data is available
-
-
-def get_hour_row(row: BeautifulSoup, date) -> PricePerHour:
-    return PricePerHour(
-        date_of_parsing=date,
-        hour=int(row.select_one("td:nth-child(2)").text),
-        price=float(row.select_one("td:nth-child(3)").text),
-        sales_volume_MWh=float(row.select_one("td:nth-child(4)").text),
-        purchase_volume_MWh=float(row.select_one("td:nth-child(5)").text),
-        declared_sales_volume_MWh=float(row.select_one("td:nth-child(6)").text),
-        declared_purchase_volume_MWh=float(row.select_one("td:nth-child(7)").text),
-    )
-
-
-def check_connection():
-    try:
-        response = requests.get(URL, verify=False)
-        response.raise_for_status()
-        return True
-    except requests.exceptions.RequestException as e:
-        flash("Помилка з'єднання, перевірте мережу:", str(e))
-
-
-def check_connection_for_driver(driver, url: str):
-    try:
-        driver.get(url)
-    except WebDriverException as e:
-        raise Exception("Помилка з'єднання:", str(e))
+last_date = get_date()  # last date for which data is available
 
 
 def check_date(date: str) -> bool:
@@ -88,18 +59,22 @@ def get_table(date: str) -> list:
         for row in rows:
             cells = row.find_all("td")
             if len(cells) == 8:
-                data.append(get_hour_row(row, date))
+                hour_row = get_hour_row(row, date)
+                db.session.add(hour_row)
+                db.session.commit()
+                data.append(hour_row.to_dict())
     driver.close()
     return data
 
 
 @app.route("/", methods=["GET"])
 def date_form():
+
     return render_template("market_page.html")
 
 
 @app.route("/data", methods=["GET"])
-def get_data():
+def get_data_from_market():
     if not check_connection():
         return render_template("market_page.html")
     date = request.args.get("date")
@@ -108,13 +83,36 @@ def get_data():
     else:
         if check_date(date):
             return render_template("market_page.html")
-
+    if PricePerHour.query.filter_by(date_of_parsing=date).all() != []:
+        flash("Дані за цю дату вже збережено в базу даних")
+        return render_template("market_page.html")
     data = []
     while not data:
         data = get_table(date)
+    return jsonify({"data": data}), 200
 
-    # save_to_csv(data, date)
-    # save_to_database(data)
+
+@app.route("/db", methods=["GET"])
+def get_data_from_db():
+    date = request.args.get("date")
+    if not date:
+        date = last_date
+    else:
+        if check_date(date):
+            return render_template("market_page.html")
+    hours = PricePerHour.query.filter_by(date_of_parsing=date).all()
+    data = []
+    for hour in hours:
+        data.append({
+            "id": hour.id,
+            "date_of_parsing": hour.date_of_parsing,
+            "hour": hour.hour,
+            "price": hour.price,
+            "sales_volume_MWh": hour.sales_volume_MWh,
+            "purchase_volume_MWh": hour.purchase_volume_MWh,
+            "declared_sales_volume_MWh": hour.declared_sales_volume_MWh,
+            "declared_purchase_volume_MWh": hour.declared_purchase_volume_MWh,
+        })
     return jsonify({"data": data}), 200
 
 

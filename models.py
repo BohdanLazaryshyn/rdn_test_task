@@ -1,14 +1,24 @@
-from dataclasses import dataclass
-
-URL = "https://www.oree.com.ua/index.php/control/results_mo/DAM"    # URL of the page with the table
+from config import db
 
 
-@dataclass
-class PricePerHour:           # dataclass for storing data from the table
-    date_of_parsing: str
-    hour: int
-    price: float
-    sales_volume_MWh: float
-    purchase_volume_MWh: float
-    declared_sales_volume_MWh: float
-    declared_purchase_volume_MWh: float
+class PricePerHour(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    date_of_parsing = db.Column(db.String(10), nullable=False)
+    hour = db.Column(db.Integer, nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    sales_volume_MWh = db.Column(db.Float, nullable=False)
+    purchase_volume_MWh = db.Column(db.Float, nullable=False)
+    declared_sales_volume_MWh = db.Column(db.Float, nullable=False)
+    declared_purchase_volume_MWh = db.Column(db.Float, nullable=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "date_of_parsing": self.date_of_parsing,
+            "hour": self.hour,
+            "price": self.price,
+            "sales_volume_MWh": self.sales_volume_MWh,
+            "purchase_volume_MWh": self.purchase_volume_MWh,
+            "declared_sales_volume_MWh": self.declared_sales_volume_MWh,
+            "declared_purchase_volume_MWh": self.declared_purchase_volume_MWh,
+        }

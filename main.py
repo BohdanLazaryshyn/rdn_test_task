@@ -3,33 +3,14 @@ import time
 
 import requests
 import schedule as schedule
-from selenium.common import WebDriverException
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
 
-from models import PricePerHour, URL
-
-
-def get_hour_row(row: BeautifulSoup, date: str) -> PricePerHour:
-    return PricePerHour(
-        date_of_parsing=date,
-        hour=int(row.select_one("td:nth-child(2)").text),
-        price=float(row.select_one("td:nth-child(3)").text),
-        sales_volume_MWh=float(row.select_one("td:nth-child(4)").text),
-        purchase_volume_MWh=float(row.select_one("td:nth-child(5)").text),
-        declared_sales_volume_MWh=float(row.select_one("td:nth-child(6)").text),
-        declared_purchase_volume_MWh=float(row.select_one("td:nth-child(7)").text),
-    )
-
-
-def check_connection(driver, url: str):
-    try:
-        driver.get(url)
-    except WebDriverException:
-        raise Exception("Помилка з'єднання зі сторінкою, перевірте мережу")
+from config import db, app
+from utils import URL, get_hour_row, check_connection_for_driver
 
 
 def get_table(date: str) -> list:
@@ -37,7 +18,7 @@ def get_table(date: str) -> list:
     options = Options()
     options.add_argument("--headless")
     driver = webdriver.Chrome(service=service, options=options)
-    check_connection(driver, URL)
+    check_connection_for_driver(driver, URL)
     time.sleep(3)
     element = driver.find_element(By.CLASS_NAME, "tab-trade-res")
     if element.text == "Погодинні результати на РДН":
@@ -46,13 +27,16 @@ def get_table(date: str) -> list:
     page = driver.page_source
     soup = BeautifulSoup(page, "html.parser")
     table = soup.find("table", class_="site-table")
-
     data = []
     rows = table.find_all("tr")
-    for row in rows:
-        cells = row.find_all("td")
-        if len(cells) == 8:
-            data.append(get_hour_row(row, date))
+    with app.app_context():
+        for row in rows:
+            cells = row.find_all("td")
+            if len(cells) == 8:
+                hour_row = get_hour_row(row, date)
+                db.session.add(hour_row)  # Add the instance to the session
+                db.session.commit()
+                data.append(hour_row.to_dict())
     driver.quit()
     return data
 
@@ -67,8 +51,6 @@ def scrap_skript(n: int):       # n - time in seconds to repeat the function cal
             print(f"An error occurred on the site, try again in {n} seconds")
             time.sleep(n)
     print(data)
-    # save_to_csv(data, date_scraped)           # uncomment for the possibility of saving in a file
-    # save_to_database(data)                    # uncomment for the possibility of saving in a database
     return True
 
 

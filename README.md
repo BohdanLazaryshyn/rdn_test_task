@@ -9,6 +9,9 @@ python -m venv venv
 venv\Scripts\activate (on Windows)
 source venv/bin/activate (on macOS)
 pip install -r requirements.txt
+lask db init
+flask db migrate -m "Initial migration."
+flask db upgrade
 ```
 
 1)The first script, after starting the program, will run every day after 12:00 and check whether the market has closed, after which it will read information from the site. You can adjust the frequency of checking requests to the site itself in the "job" function. It is in the file "main".
@@ -18,11 +21,10 @@ python main.py
 ```
 
 
-2)The second script launches an endpoint with a form where you can specify the date you are interested in and retrieve information for that date. 
+2)It provides an opportunity to parse information for a specific date and store it in the database, as well as search for information in the database by date. 
 ### how to run the script
 ```
-cd RDN_Flask
 python flask_end.py
-```
+Running on http://127.0.0.1:5000
 
-Optional: For two scripts, it is possible to store information in a file and a database. for this you need to uncomment the relevant functions at the bottom of the scripts.
+```
