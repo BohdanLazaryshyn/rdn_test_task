@@ -24,7 +24,7 @@ python main.py
 2)It provides an opportunity to parse information for a specific date and store it in the database, as well as search for information in the database by date. 
 ### how to run the script
 ```
-python flask_end.py
+python арр.py
 Running on http://127.0.0.1:5000
 
 ```
