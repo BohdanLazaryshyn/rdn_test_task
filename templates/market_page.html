@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Ринок РДН</title>
+</head>
+<body>
+    <h1>Оберіть дату для зчитування</h1>
+    <h4>Якщо поле залишити пустим, буде збережена інформація за останній доступний день</h4>
+    <form action="/data" method="GET">
+        <label for="date">Date for scraping:</label>
+        <input type="text" name="date" id="date" placeholder="dd.mm.yyyy">
+        <br>
+        <input type="submit" value="Submit">
+
+    </form>
+      <br>
+    <form action="/db" method="GET">
+        <label for="date">Date for searching in db:</label>
+        <input type="text" name="date" id="date" placeholder="dd.mm.yyyy">
+        <br>
+        <input type="submit" value="Submit">
+    </form>
+    <br>
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul class="error-messages">
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+</body>
+</html>
