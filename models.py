@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
+URL = "https://www.oree.com.ua/index.php/control/results_mo/DAM"    # URL of the page with the table
+
 
 @dataclass
-class PricePerHour:
+class PricePerHour:           # dataclass for storing data from the table
     date_of_parsing: str
     hour: int
     price: float

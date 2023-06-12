@@ -9,14 +9,15 @@ from selenium.webdriver import Chrome, Keys
 from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
 
-from model import PricePerHour
-from utils import save_to_csv, save_to_database
+from models import PricePerHour, URL
+from utils import get_date
+
 
 app = Flask(__name__)
 app.config["DEBUG"] = True
 app.secret_key = secrets.token_hex(16)
 
-URL = "https://www.oree.com.ua/index.php/control/results_mo/DAM"
+last_date = get_date()        # last date for which data is available
 
 
 def get_hour_row(row: BeautifulSoup, date) -> PricePerHour:
@@ -47,19 +48,6 @@ def check_connection_for_driver(driver, url: str):
         raise Exception("Помилка з'єднання:", str(e))
 
 
-def get_date():
-    response = requests.get(URL, verify=False).content
-    post = BeautifulSoup(response, "html.parser")
-    element = post.select_one("#date_pxs")
-    page_date = element["value"]
-    expected_date = (datetime.datetime.now() + datetime.timedelta(days=1)).date()
-    expected_date = expected_date.strftime("%d.%m.%Y")
-    if page_date == expected_date:
-        return expected_date
-    else:
-        return datetime.datetime.now().date().strftime("%d.%m.%Y")
-
-
 def check_date(date: str) -> bool:
     try:
         datetime.datetime.strptime(date, "%d.%m.%Y")
@@ -69,6 +57,9 @@ def check_date(date: str) -> bool:
     first_date = datetime.datetime.strptime("01.07.2019", "%d.%m.%Y")
     if datetime.datetime.strptime(date, "%d.%m.%Y") < first_date:
         flash("Дата повинна бути після 01.07.2019")
+        return True
+    if datetime.datetime.strptime(date, "%d.%m.%Y") > datetime.datetime.strptime(last_date, "%d.%m.%Y"):
+        flash(f"Остання доступна дата: {last_date}")
         return True
 
 
@@ -80,13 +71,13 @@ def get_table(date: str) -> list:
     if element.text == "Погодинні результати на РДН":
         element.click()
     time.sleep(1)
-    if datetime.datetime.strptime(date, "%d.%m.%Y") < datetime.datetime.now():
+    if datetime.datetime.strptime(date, "%d.%m.%Y") < datetime.datetime.now():   # if date is in the past
         calendar = driver.find_element(By.ID, "date_pxs")
         calendar.clear()
         calendar.send_keys(date)
         time.sleep(0.5)
         calendar.send_keys(Keys.ENTER)
-        time.sleep(3)                   # work with datepicker end
+        time.sleep(3)
     page = driver.page_source
     soup = BeautifulSoup(page, "html.parser")
     table = soup.find("table", class_="site-table")
@@ -113,9 +104,7 @@ def get_data():
         return render_template("market_page.html")
     date = request.args.get("date")
     if not date:
-        date = get_date()
-        if not date:
-            return render_template("market_page.html")
+        date = last_date
     else:
         if check_date(date):
             return render_template("market_page.html")
@@ -124,8 +113,8 @@ def get_data():
     while not data:
         data = get_table(date)
 
-    save_to_csv(data, date)
-    save_to_database(data)
+    # save_to_csv(data, date)
+    # save_to_database(data)
     return jsonify({"data": data}), 200
 
 
